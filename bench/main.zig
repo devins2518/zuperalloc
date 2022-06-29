@@ -1,5 +1,5 @@
-const threadtest = @import("threadtest.zig");
+const Zalloc = @import("zalloc").Zalloc;
 
 pub fn main() void {
-    threadtest.bench();
+    _ = Zalloc.init();
 }

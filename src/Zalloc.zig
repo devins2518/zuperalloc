@@ -4,203 +4,56 @@ const Atomic = std.atomic.Atomic;
 const Cache = @import("Cache.zig");
 const Chunk = @import("Chunk.zig");
 const Self = @This();
-const VoidStar = utils.VoidStar;
 const utils = @import("utils.zig");
-const max = std.math.max;
-const static_bin_info = @import("static_bin.zig").static_bin_info;
+const max_allocatable_size = (utils.chunk_size << 27) - 1;
+const BinNumber = utils.BinNumber;
+const ChunkNumber = utils.ChunkNumber;
+const BinAndSize = utils.BinAndSize;
 
-// TODO: set using envvars
-var use_threadcache = true;
-
-cache: Cache = .{},
-has_tsx: bool = false,
-n_cores: u32 = 0,
-chunk_mgr: Chunk = .{},
-chunk_infos: ?*ChunkInfo = null,
-free_chunks: [utils.log_max_chunknumber]Atomic(u32) = .{Atomic(u32).init(0)} ** utils.log_max_chunknumber,
 init_lock: u32 = 0,
+chunk_infos: []ChunkInfo,
+n_cores: usize,
+use_transactions: bool = true,
+do_predo: bool = true,
+has_tsx: bool,
+cache: Cache = .{},
+chunk_mgr: Chunk = .{},
+
+const ChunkInfo = struct {
+    bin_and_size: u32 = 0,
+    REMOVE_ME: u32 = 0,
+};
+
+pub fn init() Self {
+    const have_tsx = haveTSX();
+
+    const n_elts: usize = 1 << 27;
+    const alloc_size: usize = n_elts * @sizeOf(ChunkInfo);
+    const n_chunks: usize = std.math.divCeil(usize, alloc_size, utils.chunk_size) catch unreachable;
+
+    const n_cores = std.Thread.getCpuCount() catch unreachable;
+
+    var self = Self{ .has_tsx = have_tsx, .n_cores = n_cores, .chunk_infos = undefined };
+    const chunks_slice = self.chunk_mgr.mmapChunkAlignedBlock(n_chunks) orelse
+        @panic("failed to create chunk info");
+    // TODO: https://github.com/ziglang/zig/issues/7495
+    self.chunk_infos = @ptrCast([]ChunkInfo, std.mem.bytesAsSlice(ChunkInfo, chunks_slice));
+    self.cache.init();
+    return self;
+}
 
 pub inline fn allocator(self: *Self) Allocator {
     return Allocator.init(self, alloc, resize, free);
 }
 
-fn alloc(self: *Self, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) Allocator.Error![]u8 {
-    self.maybeInitAlloc();
-    if (len >= utils.max_allocatable_size) return error.OutOfMemory;
-    if (len >= utils.largest_small) {
-        const bin = sizeToBin(len);
-        const size = binToSize(bin);
-        return if (len <= utils.cache_line or !std.math.isPowerOfTwo(size))
-            self.cachedAlloc(bin) orelse error.OutOfMemory
-        else
-            self.cachedAlloc(bin + 1) orelse error.OutOfMemory;
-    } else {
-        const misalignment = if (len <= utils.largest_small)
-            0
-        else
-            @mod(std.rand.DefaultPrng.random().int() * utils.cache_line, utils.page_size);
-        const allocate_size = len + misalignment;
-        if (allocate_size <= utils.largest_large) {
-            const bin = sizeToBin(allocate_size);
-            const slice = try cachedAlloc(bin);
-            return slice.ptr + misalignment;
-        } else {
-            const slice = try hugeAlloc(allocate_size);
-            return slice.ptr + misalignment;
-        }
-    }
-    _ = self;
-    _ = len;
-    _ = ptr_align;
-    _ = len_align;
-    _ = ret_addr;
-    std.debug.todo("alloc");
-}
-fn resize(ptr: *Self, buf: []u8, buf_align: u29, new_len: usize, len_align: u29, ret_addr: usize) ?usize {
-    _ = ptr;
-    _ = buf;
-    _ = buf_align;
-    _ = new_len;
-    _ = len_align;
-    _ = ret_addr;
-    std.debug.todo("resize");
-}
-fn free(ptr: *Self, buf: []u8, buf_align: u29, ret_addr: usize) void {
-    _ = ptr;
-    _ = buf;
-    _ = buf_align;
-    _ = ret_addr;
-    std.debug.todo("free");
-}
-
-fn initAlloc(self: *Self) void {
-    self.has_tsx = utils.haveTsx();
-    const n_elts = 1 << 27;
-    const alloc_size = n_elts * @sizeOf(ChunkInfo);
-    const n_chunks = std.math.max(alloc_size, utils.chunksize);
-    self.chunk_infos = self.chunk_mgr.mmapChunkAlignedBlock(n_chunks).?;
-    self.n_cores = utils.cpuCores();
-}
-
-fn maybeInitAlloc(self: *Self) void {
-    if (@atomicLoad(?*ChunkInfo, &self.chunk_infos, .SeqCst) != null) return;
-    _ = @atomicRmw(u32, &self.init_lock, .Xchg, 1, .Acquire);
-    if (self.chunk_infos == null) self.initAlloc();
-    _ = @atomicRmw(u32, &self.init_lock, .Xchg, 0, .Release);
-}
-
-fn cachedAlloc(self: *Self, bin: u32) VoidStar {
-    _ = self;
-    std.debug.assert(bin < utils.first_huge_bin_number);
-    const size = binToSize(bin);
-    var ret: VoidStar = null;
-
-    if (use_threadcache) {
-        Cache.init();
-        ret = Cache.cache_for_thread.bc[bin].tryGetCachedBoth(size);
-        if (ret) return ret;
-    }
-    const p = @mod(Cache.getCpu(), utils.cpu_limit);
-    ret = Cache.cache_for_thread.tryGetCpuCached(p, bin, size);
-    if (ret) return ret;
-    ret = Cache.tryGetGlobalCached(p, bin, size);
-    if (ret) return ret;
-    return try if (bin < utils.first_large_bin_number)
-        smallAlloc(bin)
-    else
-        largeAlloc(bin);
-}
-
-fn smallAlloc(size: usize) VoidStar {
-    _ = size;
-    @panic("small alloc");
-}
-
-fn largeAlloc(size: usize) VoidStar {
-    _ = size;
-    @panic("large alloc");
-}
-
-fn hugeAlloc(self: *Self, size: usize) VoidStar {
-    const n_chunks = max(1, std.math.ceilPowerOfTwo(size) / utils.chunksize);
-    const c = try getPowerOfTwoNChunks(n_chunks);
-    std.os.madvise(c, n_chunks * utils.chunksize, utils.MADV_DONTNEED);
-    const n_whole_chunks = size / utils.chunksize;
-    const n_bytes_at_end = size - (n_whole_chunks * utils.chunksize);
-    if (n_bytes_at_end == 0 or utils.chunksize - n_bytes_at_end < utils.chunksize / 8)
-        std.os.madvise(c, n_chunks * utils.chunksize, utils.MADV_HUGEPAGE)
-    else {
-        if (n_whole_chunks > 0)
-            std.os.madvise(c, n_whole_chunks * utils.chunksize, utils.MADV_HUGEPAGE);
-        std.os.madvise(c + (n_whole_chunks * utils.chunksize), n_bytes_at_end, utils.MADV_NOHUGEPAGE);
-    }
-    const chunk_num = addressToChunkNumber(c);
-    const bin = sizeToBin(n_chunks * utils.chunksize);
-    const b_and_s = utils.bAndSToBAndS(bin, size);
-    std.debug.assert(b_and_s != 0);
-    self.chunk_infos[chunk_num].bin_and_size = b_and_s;
-    return c;
-}
-
-const ChunkInfo = union {
-    b_and_s: u32,
-    next: u32,
-};
-
-fn getPowerOfTwoNChunks(self: *Self, chunks: u32) VoidStar {
-    var r = getCachedPowerOfTwoChunks(std.math.log2(chunks));
-    if (r != null) return r;
-    r = self.chunk_mgr.mmapChunkAlignedBlock(2 * chunks);
-    if (r == null) return r;
-    const c = addressToChunkNumber(r);
-    const end = c + (2 * chunks);
-    var res = null;
-    while (c < end) {
-        if ((c & (chunks - 1)) == 0) {
-            res = c * utils.chunksize;
-            c += chunks;
-            break;
-        } else {
-            const bit = @ctz(u32, c);
-            while (c + (1 << bit) > end) bit -= 1;
-            putCachedPowerOfTwoChunks(c, bit);
-            c += 1 << bit;
-        }
-    }
-    while (c < end) {
-        const bit = @ctz(u32, c);
-        while (c + (1 << bit) > end) bit -= 1;
-        putCachedPowerOfTwoChunks(c, bit);
-        c += 1 << bit;
-    }
-    return res;
-}
-
-fn getCachedPowerOfTwoChunks(self: *Self, list_num: u32) VoidStar {
-    if (self.free_chunks[list_num] == 0) return null;
-    @panic("add to free chunks");
-}
-
-fn putCachedPowerOfTwoChunks(self: *Self, chunk: u32, list_num: u23) void {
-    while (true) {
-        const head = self.free_chunks[list_num].load(.Acq);
-        self.chunk_infos[chunk].next = head;
-        if (self.free_chunks[list_num].compareAndSwap(head, chunk, .Acquire, .Monotonic)) break;
-    }
-}
-
-fn addressToChunkNumber(ptr: VoidStar) u32 {
-    const addr = @ptrToInt(ptr);
-    const addrm = addr / utils.chunksize;
-    return @mod(addrm, 1 << 27);
-}
-
-fn sizeToBin(size: usize) u32 {
+fn sizeToBin(size: usize) BinNumber {
     return if (size <= 0x00008)
         0
-    else if (size <= 0x140) {
-        // TODO
-        @panic("wtf");
+    else if (size <= 0x00140) blk: {
+        const nzeros = @clz(usize, size);
+        const roundup = size + (@as(usize, 1) << @truncate(u6, 61 - nzeros)) - 1;
+        const nzeros2 = @clz(usize, roundup);
+        break :blk 4 * (60 - nzeros2) + @truncate(u32, (roundup >> @truncate(u6, 61 - nzeros2)) & 3);
     } else if (size <= 0x001C0)
         22
     else if (size <= 0x00200)
@@ -247,17 +100,93 @@ fn sizeToBin(size: usize) u32 {
         43
     else if (size <= 0x7F000)
         44
+    else if (size <= 520192)
+        45
+    else if (size <= 1044480)
+        46
+    else if (size <= 2097152)
+        // Special case to handle the values between the
+        // largest_large and chunksize/2
+        47
     else
-        45 + std.math.divCeil(usize, size - 0xFF00, utils.page_size);
+        47 + std.math.log2(hyperceil(size)) - @as(u32, utils.log_chunk_size);
 }
-fn binToSize(bin: usize) usize {
-    return static_bin_info[bin].object_size;
+
+fn hyperceil(_: anytype) u32 {
+    @panic("todo");
+}
+fn addressToChunkNumber(_: anytype) u32 {
+    @panic("todo");
+}
+fn binFromBinAndSize(_: anytype) u32 {
+    @panic("todo");
+}
+fn cachedFree(_: anytype, _: anytype) void {
+    @panic("todo");
+}
+fn objectBase(_: anytype) u32 {
+    @panic("todo");
+}
+fn hugeFree(_: anytype) void {
+    @panic("todo");
+}
+
+fn haveTSX() bool {
+    // TODO
+    return true;
+}
+fn hugeAlloc(_: usize) Allocator.Error![]u8 {
+    @panic("todo");
+}
+fn mmapChunkAlignedBlock(comptime T: type, _: usize) []T {
+    @panic("todo");
+}
+
+fn alloc(self: *Self, len: usize, _: u29, _: u29, _: usize) Allocator.Error![]u8 {
+    if (len >= max_allocatable_size) return error.OutOfMemory;
+    if (len < utils.largest_small) {
+        const bin = sizeToBin(len);
+        const size = utils.binToSize(bin);
+        return if (len <= utils.cache_line or std.math.isPowerOfTwo(size))
+            self.cache.cachedAlloc(bin) orelse error.OutOfMemory
+        else
+            self.cache.cachedAlloc(bin + 1) orelse error.OutOfMemory;
+    } else {
+        var rand = std.rand.DefaultPrng.init(0);
+        const misalignment: usize = if (len <= utils.largest_small)
+            0
+        else
+            (rand.random().int(usize) * utils.cache_line) % utils.page_size;
+        const allocate_size: usize = len + misalignment;
+        if (allocate_size <= utils.largest_large) {
+            const bin = sizeToBin(allocate_size);
+            const result = self.cache.cachedAlloc(bin) orelse return error.OutOfMemory;
+            return result[misalignment .. misalignment + len];
+        } else {
+            const result = hugeAlloc(allocate_size) catch return error.OutOfMemory;
+            return result[misalignment .. misalignment + len];
+        }
+    }
+}
+fn resize(_: *Self, _: []u8, _: u29, _: usize, _: u29, _: usize) ?usize {
+    @panic("Unimplemented");
+}
+fn free(self: *Self, buf: []u8, _: u29, _: usize) void {
+    const chunk_num = addressToChunkNumber(buf.ptr);
+    const bnt = self.chunk_infos[chunk_num].bin_and_size;
+    if (bnt == 0) @panic("Attempted to free value which was not allocated using Zalloc!");
+    const bin = binFromBinAndSize(bnt);
+    std.debug.assert(utils.offsetInChunk(buf.ptr) != 0 and bin != 0);
+    if (bin < utils.first_huge_bin_number)
+        cachedFree(objectBase(buf.ptr), bin)
+    else
+        hugeFree(buf.ptr);
 }
 
 test "static analysis" {
-    std.testing.refAllDecls(@This());
-    var zuper_allocator = std.mem.validationWrap(@This(){});
-    const child = zuper_allocator.allocator();
+    std.testing.refAllDecls(Self);
+    var zalloc = std.mem.validationWrap(Self.init());
+    const child = zalloc.allocator();
 
     try std.heap.testAllocator(child);
     try std.heap.testAllocatorAligned(child);

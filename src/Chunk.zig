@@ -1,52 +1,55 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const Self = @This();
 const Atomic = std.atomic.Atomic;
-const VoidStar = utils.VoidStar;
+const Self = @This();
 
-const mmap = std.c.mmap;
-const munmap = std.c.munmap;
+total_mapped: Atomic(usize) = Atomic(usize).init(0),
+unmapped: Atomic(usize) = Atomic(usize).init(0),
 
-backing_alloc: Allocator = std.heap.page_allocator,
-total_mapped: usize = 0,
-unmapped: usize = 0,
-
-pub fn mmapSize(self: *Self, size: usize) VoidStar {
-    const r = self.backing_alloc.alloc(u8);
-    self.total_mapped += size;
+pub fn mmapSize(self: *Self, len: usize) ?[]u8 {
+    const r = std.os.mmap(
+        null,
+        len,
+        utils.PROT_READ | utils.PROT_WRITE,
+        utils.MAP_PRIVATE | utils.MAP_ANON | utils.MAP_NORESERVE,
+        -1,
+        0,
+    ) catch return null;
+    _ = self.total_mapped.fetchAdd(len, .SeqCst);
     return r;
 }
 
-fn unmap(self: *Self, ptr: VoidStar, size: usize) void {
-    if (size > 0) {
-        const r = munmap(ptr, size);
-        if (r != 0) @panic("Failure during unmap");
+fn unmap(self: *Self, buf: []u8) void {
+    if (buf.len > 0) {
+        std.os.munmap(@alignCast(utils.page_size, buf));
+        _ = self.unmapped.fetchAdd(buf.len, .SeqCst);
     }
-    self.unmapped += size;
 }
 
-fn createChunkSlow(self: *Self, chunks: usize) VoidStar {
-    const total_size = (1 + chunks) * utils.chunksize;
-    const m = self.mmapSize(total_size);
-    const offset = utils.offsetInChunk(m);
-    if (offset == 0) {
-        self.unmap(m + (chunks * utils.chunksize), utils.chunksize);
+fn chunkCreateSlow(self: *Self, chunks: usize) ?[]u8 {
+    const total_size = (1 + chunks) * utils.chunk_size;
+    const m = self.mmapSize(total_size) orelse return null;
+    const m_offset = utils.offsetInChunk(m);
+    if (m_offset == 0) {
+        self.unmap(m[chunks * utils.chunk_size .. (chunks * utils.chunk_size) + utils.chunk_size]);
         return m;
     } else {
-        const leading = utils.chunksize - offset;
-        self.unmap(m, leading);
-        const final_m = m + leading;
-        self.unmap(final_m + (chunks * utils.chunksize), offset);
+        const leading_useless = utils.chunk_size - m_offset;
+        self.unmap(m[0..leading_useless]);
+        const final_m = m[leading_useless..];
+        self.unmap(m[chunks * utils.chunk_size .. (chunks * utils.chunk_size) + m_offset]);
         return final_m;
     }
 }
 
-pub fn mmapChunkAlignedBlock(self: *Self, chunks: usize) VoidStar {
-    const r = self.mmapSize(chunks * utils.chunksize);
-    if (r == null) return null;
-
+pub fn mmapChunkAlignedBlock(self: *Self, chunks: usize) ?[]u8 {
+    const r = self.mmapSize(chunks * utils.chunk_size) orelse return null;
     if (utils.offsetInChunk(r) != 0) {
-        self.unmap(r, chunks * utils.chunksize);
+        self.unmap(r);
         return self.chunkCreateSlow(chunks);
     } else return r;
+}
+
+test "static analysis" {
+    std.testing.refAllDecls(Self);
 }

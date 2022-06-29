@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn build(b: *std.build.Builder) void {
-    b.use_stage1 = false;
+    // b.use_stage1 = false;
     const target = b.standardTargetOptions(.{});
 
     // Standard release options allow the person running `zig build` to select
@@ -9,15 +9,16 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const bench = b.addExecutable("bench", "bench/main.zig");
+    bench.addPackagePath("zalloc", "src/lib.zig");
     bench.setTarget(target);
-    bench.setBuildMode(.ReleaseFast);
+    // bench.setBuildMode(.ReleaseFast);
     bench.install();
 
-    const lib = b.addStaticLibrary("zuperalloc", "src/main.zig");
+    const lib = b.addStaticLibrary("zalloc", "src/lib.zig");
     lib.setBuildMode(mode);
     lib.install();
 
-    const main_tests = b.addTest("src/main.zig");
+    const main_tests = b.addTest("src/lib.zig");
     main_tests.setBuildMode(mode);
 
     const test_step = b.step("test", "Run library tests");
