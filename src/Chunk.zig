@@ -6,7 +6,7 @@ const Self = @This();
 total_mapped: Atomic(usize) = Atomic(usize).init(0),
 unmapped: Atomic(usize) = Atomic(usize).init(0),
 
-pub fn mmapSize(self: *Self, len: usize) ?[]u8 {
+pub fn mmapSize(self: *Self, len: usize) ?[]align(utils.page_size) u8 {
     const r = std.os.mmap(
         null,
         len,
@@ -26,7 +26,7 @@ fn unmap(self: *Self, buf: []u8) void {
     }
 }
 
-fn chunkCreateSlow(self: *Self, chunks: usize) ?[]u8 {
+fn chunkCreateSlow(self: *Self, chunks: usize) ?[]align(utils.page_size) u8 {
     const total_size = (1 + chunks) * utils.chunk_size;
     const m = self.mmapSize(total_size) orelse return null;
     const m_offset = utils.offsetInChunk(m);
@@ -42,7 +42,7 @@ fn chunkCreateSlow(self: *Self, chunks: usize) ?[]u8 {
     }
 }
 
-pub fn mmapChunkAlignedBlock(self: *Self, chunks: usize) ?[]u8 {
+pub fn mmapChunkAlignedBlock(self: *Self, chunks: usize) ?[]align(utils.page_size) u8 {
     const r = self.mmapSize(chunks * utils.chunk_size) orelse return null;
     if (utils.offsetInChunk(r) != 0) {
         self.unmap(r);

@@ -73,19 +73,70 @@ pub fn offsetInChunk(ptr: anytype) usize {
     return @mod(@ptrToInt(p), chunk_size);
 }
 
+// TODO: impl rtm for x86 (arm has tme but released in 2019 and probably sparsely implemented)
 pub fn atomically(
+    comptime T: type,
     lock: *Mutex,
     name: []const u8,
     predo_fn: anytype,
     do_fn: anytype,
     args: anytype,
-) blk: {
-    break :blk @typeInfo(@TypeOf(do_fn)).Fn.return_type orelse void;
-} {
-    _ = lock;
+) T {
     _ = name;
     _ = predo_fn;
-    _ = do_fn;
-    _ = args;
-    @panic("todo");
+    lock.lock();
+    defer lock.unlock();
+    return @call(.{}, do_fn, args);
+}
+
+pub fn atomically2(
+    comptime T: type,
+    lock0: *Mutex,
+    lock1: *Mutex,
+    name: []const u8,
+    predo_fn: anytype,
+    do_fn: anytype,
+    args: anytype,
+) T {
+    _ = name;
+    _ = predo_fn;
+    lock0.lock();
+    defer lock0.unlock();
+    lock1.lock();
+    defer lock1.unlock();
+    return @call(.{}, do_fn, args);
+}
+
+pub fn addressToChunkNumber(ptr: anytype) ChunkNumber {
+    std.debug.assert(@typeInfo(@TypeOf(ptr)) == .Pointer);
+    const p = if (@typeInfo(@TypeOf(ptr)).Pointer.size == .Slice)
+        ptr.ptr
+    else
+        ptr;
+    const au = @ptrToInt((p));
+    const am = au / chunk_size;
+    return @truncate(ChunkNumber, @mod(am, 1 << 27));
+}
+
+pub fn binAndSizeToBinAndSize(bin: BinNumber, len: usize) BinAndSize {
+    std.debug.assert(bin < 127);
+    const n_pages = std.math.divCeil(usize, len, page_size) catch unreachable;
+    return if (n_pages < (1 << 24))
+        @truncate(BinAndSize, 1 + bin + (1 << 7) + (n_pages << 8))
+    else
+        @truncate(BinAndSize, 1 + bin + ((std.math.divCeil(usize, len, chunk_size) catch unreachable) << 8));
+}
+
+pub fn binFromBinAndSize(b_and_t: BinAndSize) u32 {
+    std.debug.assert((b_and_t & 127) != 0);
+    return (b_and_t & 127) - 1;
+}
+
+pub fn addressToChunkAddress(ptr: anytype) [*]u8 {
+    std.debug.assert(@typeInfo(@TypeOf(ptr)) == .Pointer);
+    const p = if (@typeInfo(@TypeOf(ptr)).Pointer.size == .Slice)
+        ptr.ptr
+    else
+        ptr;
+    return @intToPtr([*]u8, @ptrToInt(p) & ~(chunk_size - 1));
 }

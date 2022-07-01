@@ -170,7 +170,6 @@ const BinCache = struct {
         return true;
     }
 
-    // TODO: remove _?
     fn predoFetchOneFromCpu(self: *@This(), _: usize) void {
         for (self.cached_objs) |obj| {
             const result = obj.head;
@@ -199,26 +198,25 @@ const BinCache = struct {
         return null;
     }
 
-    // TODO: remove _?
     fn predoGetGlobalCache(self: *@This(), global_bin_cache: *GlobalBinCache, _: usize) void {
-        const n = @atomicLoad(u8, global_bin_cache.nonempty_caches, .Acquire);
+        const n = @atomicLoad(u8, &global_bin_cache.nonempty_caches, .Acquire);
         if (n > 0) {
             const result = if (global_bin_cache.cached_objects[n - 1].head) |res| res else return;
             const next = result.next;
-            if (next) {
+            if (next != null) {
                 const co0 = self.cached_objs[0];
                 const co1 = self.cached_objs[1];
                 const co = if (co0.bytecount < co1.bytecount) co0 else co1;
                 if (co.head == null) {
-                    _ = @atomicLoad(Node, self.cached_objs[n - 1].tail, .Acquire);
+                    _ = @atomicLoad(?*Node, &self.cached_objs[n - 1].tail, .Acquire);
                     utils.prefetchWrite(co.tail);
                 } else {
-                    _ = @atomicLoad(Node, self.cached_objs[n - 1].tail.?.next, .Acquire);
+                    _ = @atomicLoad(?*Node, &self.cached_objs[n - 1].tail.?.next, .Acquire);
                     utils.prefetchWrite(self.cached_objs[n - 1].tail.?.next);
                 }
                 utils.prefetchWrite(co.head);
             }
-            utils.prefetch_write(&global_bin_cache.nonempty_caches);
+            utils.prefetchWrite(&global_bin_cache.nonempty_caches);
         }
     }
 
@@ -228,8 +226,8 @@ const BinCache = struct {
             const result = global_bin_cache.cached_objects[n - 1].head;
             const next = result.?.next;
             if (next != null) {
-                const co0 = self.cached_objs[0];
-                const co1 = self.cached_objs[1];
+                const co0 = &self.cached_objs[0];
+                const co1 = &self.cached_objs[1];
                 const co = if (co0.bytecount < co1.bytecount) co0 else co1;
                 const co_head = co.head;
                 if (co_head == null)
@@ -240,7 +238,7 @@ const BinCache = struct {
                 co.bytecount = global_bin_cache.cached_objects[n - 1].bytecount - len;
             }
             global_bin_cache.nonempty_caches = n - 1;
-            return result;
+            return @ptrCast([*]u8, result)[0..len];
         } else return null;
     }
 
@@ -284,6 +282,7 @@ pub fn tryGetCpuCached(self: *Self, proc: usize, bin: BinNumber, len: usize) ?[]
 
         var co: ObjCache = undefined;
         _ = utils.atomically(
+            bool,
             &self.cpu_cache_locks[proc][bin],
             "remove_a_cache_from_cpu",
             BinCache.predoRemoveCacheFromCpu,
@@ -308,6 +307,7 @@ pub fn tryGetCpuCached(self: *Self, proc: usize, bin: BinNumber, len: usize) ?[]
 
         if (co.head != null)
             _ = utils.atomically(
+                bool,
                 &self.cpu_cache_locks[proc][bin],
                 "add_a_cache_to_cpu",
                 BinCache.predoAddCacheToCpu,
@@ -318,6 +318,7 @@ pub fn tryGetCpuCached(self: *Self, proc: usize, bin: BinNumber, len: usize) ?[]
         return @ptrCast([*]u8, result)[0..len];
     } else {
         return utils.atomically(
+            ?[]u8,
             &self.cpu_cache_locks[proc][bin],
             "fetch_one_from_cpu",
             BinCache.predoFetchOneFromCpu,
@@ -329,30 +330,16 @@ pub fn tryGetCpuCached(self: *Self, proc: usize, bin: BinNumber, len: usize) ?[]
 
 fn collectObjectsForThreadCache(_: anytype, _: anytype, _: anytype) void {}
 
-pub fn tryGetGlobalCached(proc: usize, bin: BinNumber, len: usize) ?[]u8 {
-    _ = proc;
-    _ = bin;
-    _ = len;
-    @panic("Todo");
-}
-
-pub fn cachedAlloc(self: *Self, bin: BinNumber) ?[]u8 {
-    std.debug.assert(bin < utils.first_huge_bin_number);
-    const size = utils.binToSize(bin);
-    if (self.use_threadcache) {
-        const result = cache_for_thread.bin_caches[bin].tryGetCachedBoth(size);
-        if (result) |res| return res;
-    }
-
-    const p = @mod(getCpu(), utils.cpu_limit);
-
-    var result = self.tryGetCpuCached(p, bin, size) orelse
-        tryGetGlobalCached(p, bin, size) orelse
-        if (bin < utils.first_large_bin_number)
-        smallAlloc(bin)
-    else
-        largeAlloc(size);
-    return result;
+pub fn tryGetGlobalCached(self: *Self, proc: usize, bin: BinNumber, len: usize) ?[]u8 {
+    return utils.atomically2(
+        ?[]u8,
+        &self.global_cache_locks[bin],
+        &self.cpu_cache_locks[proc][bin],
+        "get_global_cached",
+        BinCache.predoGetGlobalCache,
+        BinCache.doGetGlobalCache,
+        .{ &self.cpu_cache[proc].bin_caches[bin], &self.global_cache.bin_cache[bin], len },
+    );
 }
 
 fn tryPutCached(obj: *Node, cached_obj: *ObjCache, len: usize, cache_size: usize) bool {
@@ -520,13 +507,6 @@ fn cachedFree(self: *Self, buf: []u8, bin: BinNumber) void {
         smallFree(buf)
     else
         largeFree(buf);
-}
-
-fn smallAlloc(_: anytype) ?[]u8 {
-    @panic("todo");
-}
-fn largeAlloc(_: anytype) ?[]u8 {
-    @panic("todo");
 }
 
 test "static analysis" {
