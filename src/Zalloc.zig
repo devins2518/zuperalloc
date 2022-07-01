@@ -154,7 +154,7 @@ fn alloc(self: *Self, len: usize, _: u29, _: u29, _: usize) Allocator.Error![]u8
         const misalignment: usize = if (len <= utils.largest_small)
             0
         else
-            (rand.random().int(usize) * utils.cache_line) % utils.page_size;
+            @mod((rand.random().int(usize) *% utils.cache_line), utils.page_size);
         const allocate_size: usize = len + misalignment;
         if (allocate_size <= utils.largest_large) {
             std.debug.print("\nat file {s} fn: {s} line: {}\n", .{ @src().file, @src().fn_name, @src().line });
