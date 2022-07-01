@@ -2,6 +2,7 @@ const std = @import("std");
 const static_bin_info = @import("static_bin.zig").static_bin_info;
 const target = std.zig.CrossTarget{};
 const isLinux = target.isLinux();
+const Mutex = std.Thread.Mutex;
 pub const page_size = std.mem.page_size;
 pub const cache_line = std.atomic.cache_line;
 pub const log_chunk_size: u64 = 21;
@@ -20,18 +21,17 @@ pub usingnamespace @cImport({
     @cInclude("pthread.h");
     @cInclude("sys/mman.h");
 });
-pub const sched_getcpu = if (isLinux)
-    @cImport({
-        @cInclude("sched.h");
-    }).sched_getcpu
-else
-    // TODO: Port from https://stackoverflow.com/questions/33745364/sched-getcpu-equivalent-for-os-x
-    struct {
-        fn f() u32 {
-            return 0;
-            // @panic("todo");
-        }
-    }.f;
+pub fn sched_getcpu() u32 {
+    return if (isLinux)
+        @cImport({
+            @cInclude("sched.h");
+        }).sched_getcpu()
+    else blk: {
+        var ret: usize = undefined;
+        std.debug.assert(@This().pthread_cpu_number_np(&ret) == 0);
+        break :blk @truncate(u32, ret);
+    };
+}
 pub const BinNumber = u32;
 pub const ChunkNumber = u32;
 pub const BinAndSize = u32;
@@ -71,4 +71,21 @@ pub fn offsetInChunk(ptr: anytype) usize {
     else
         ptr;
     return @mod(@ptrToInt(p), chunk_size);
+}
+
+pub fn atomically(
+    lock: *Mutex,
+    name: []const u8,
+    predo_fn: anytype,
+    do_fn: anytype,
+    args: anytype,
+) blk: {
+    break :blk @typeInfo(@TypeOf(do_fn)).Fn.return_type orelse void;
+} {
+    _ = lock;
+    _ = name;
+    _ = predo_fn;
+    _ = do_fn;
+    _ = args;
+    @panic("todo");
 }
