@@ -10,7 +10,7 @@ const max_objects_per_folio = 2048;
 const folio_bitmap_n_words = max_objects_per_folio / 64;
 
 dsbi: struct {
-    lists: DynamicSmallBinInfo align(4096) = .{},
+    lists: DynamicSmallBinInfo align(4096) = .{ .b = [_]?*PerFolio{null} ** 11920 },
     fullest_offset: [utils.first_large_bin_number]u16 = [_]u16{0} ** utils.first_large_bin_number,
 } = .{},
 small_locks: [utils.first_large_bin_number]Mutex = [_]Mutex{.{}} ** utils.first_large_bin_number,
@@ -25,54 +25,52 @@ const PerFolio = struct {
     in_use_bitmap: [folio_bitmap_n_words]u64 = [_]u64{0} ** folio_bitmap_n_words,
 };
 
-const DynamicSmallBinInfo = struct {
-    pay: union {
-        b: [11920]?*PerFolio,
-        per: struct {
-            // zig fmt: off
-            b0:  [514]?*PerFolio = [_]PerFolio{null} **  514,
-            b1: [2050]?*PerFolio = [_]PerFolio{null} ** 2050,
-            b2: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
-            b3: [2050]?*PerFolio = [_]PerFolio{null} ** 2050,
-            b4:  [258]?*PerFolio = [_]PerFolio{null} **  258,
-            b5: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
-            b6:  [514]?*PerFolio = [_]PerFolio{null} **  514,
-            b7: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
-            b8:  [130]?*PerFolio = [_]PerFolio{null} **  130,
-            b9:  [514]?*PerFolio = [_]PerFolio{null} **  514,
-            b10: [258]?*PerFolio = [_]PerFolio{null} **  258,
-            b11: [514]?*PerFolio = [_]PerFolio{null} **  514,
-            b12:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b13: [258]?*PerFolio = [_]PerFolio{null} **  258,
-            b14: [130]?*PerFolio = [_]PerFolio{null} **  130,
-            b15: [258]?*PerFolio = [_]PerFolio{null} **  258,
-            b16:  [34]?*PerFolio = [_]PerFolio{null} **   34,
-            b17: [130]?*PerFolio = [_]PerFolio{null} **  130,
-            b18:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b19: [130]?*PerFolio = [_]PerFolio{null} **  130,
-            b20:  [18]?*PerFolio = [_]PerFolio{null} **   18,
-            b21:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b22:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b23:  [10]?*PerFolio = [_]PerFolio{null} **   10,
-            b24:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b25:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b26:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b27:   [6]?*PerFolio = [_]PerFolio{null} **    6,
-            b28:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b29:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b30:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b31:   [4]?*PerFolio = [_]PerFolio{null} **    4,
-            b32:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b33:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b34:   [3]?*PerFolio = [_]PerFolio{null} **    3,
-            b35:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b36:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b37:   [3]?*PerFolio = [_]PerFolio{null} **    3,
-            b38:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            b39:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-            // zig fmt: on
-        },
-    } = .{ .b = [_]?*PerFolio{null} ** 11920 },
+const DynamicSmallBinInfo = packed union {
+    b: [11920]?*PerFolio,
+    per: packed struct {
+        // zig fmt: off
+        b0:  [514]?*PerFolio = [_]PerFolio{null} **  514,
+        b1: [2050]?*PerFolio = [_]PerFolio{null} ** 2050,
+        b2: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
+        b3: [2050]?*PerFolio = [_]PerFolio{null} ** 2050,
+        b4:  [258]?*PerFolio = [_]PerFolio{null} **  258,
+        b5: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
+        b6:  [514]?*PerFolio = [_]PerFolio{null} **  514,
+        b7: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
+        b8:  [130]?*PerFolio = [_]PerFolio{null} **  130,
+        b9:  [514]?*PerFolio = [_]PerFolio{null} **  514,
+        b10: [258]?*PerFolio = [_]PerFolio{null} **  258,
+        b11: [514]?*PerFolio = [_]PerFolio{null} **  514,
+        b12:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b13: [258]?*PerFolio = [_]PerFolio{null} **  258,
+        b14: [130]?*PerFolio = [_]PerFolio{null} **  130,
+        b15: [258]?*PerFolio = [_]PerFolio{null} **  258,
+        b16:  [34]?*PerFolio = [_]PerFolio{null} **   34,
+        b17: [130]?*PerFolio = [_]PerFolio{null} **  130,
+        b18:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b19: [130]?*PerFolio = [_]PerFolio{null} **  130,
+        b20:  [18]?*PerFolio = [_]PerFolio{null} **   18,
+        b21:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b22:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b23:  [10]?*PerFolio = [_]PerFolio{null} **   10,
+        b24:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b25:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b26:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b27:   [6]?*PerFolio = [_]PerFolio{null} **    6,
+        b28:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b29:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b30:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b31:   [4]?*PerFolio = [_]PerFolio{null} **    4,
+        b32:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b33:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b34:   [3]?*PerFolio = [_]PerFolio{null} **    3,
+        b35:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b36:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b37:   [3]?*PerFolio = [_]PerFolio{null} **    3,
+        b38:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b39:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        // zig fmt: on
+    },
 };
 
 fn verifySmallInvariants(self: *Self) void {
@@ -141,25 +139,25 @@ fn doSmallAlloc(self: *Self, bin: BinNumber, offset: u32, obj_size: u32) ?[*]u8 
 
     const obj_per_folio = static_bin_info[bin].objects_per_folio;
     var fetch_offset = fullest;
-    var result_pp = self.dsbi.lists.pay.b[offset + fetch_offset];
+    var result_pp = self.dsbi.lists.b[offset + fetch_offset];
     if (fullest == obj_per_folio and result_pp == null) {
         fetch_offset += 1;
-        result_pp = self.dsbi.lists.pay.b[offset + fetch_offset];
+        result_pp = self.dsbi.lists.b[offset + fetch_offset];
     }
 
     std.debug.assert(result_pp != null);
 
     const next = result_pp.?.next;
-    self.dsbi.lists.pay.b[offset + fetch_offset] = next;
+    self.dsbi.lists.b[offset + fetch_offset] = next;
 
     if (next) |n|
         n.prev = null;
 
-    const old_head_below = self.dsbi.lists.pay.b[offset + fullest - 1];
+    const old_head_below = self.dsbi.lists.b[offset + fullest - 1];
     result_pp.?.next = old_head_below;
     if (old_head_below) |o_h_b|
         o_h_b.prev = result_pp;
-    self.dsbi.lists.pay.b[offset + fullest - 1] = result_pp;
+    self.dsbi.lists.b[offset + fullest - 1] = result_pp;
 
     if (fullest > 1)
         self.dsbi.fullest_offset[bin] = fullest - 1
@@ -167,7 +165,7 @@ fn doSmallAlloc(self: *Self, bin: BinNumber, offset: u32, obj_size: u32) ?[*]u8 
         var use_new_fullest: u32 = 0;
         var new_fullest: u32 = 1;
         while (new_fullest < obj_per_folio + 2) : (new_fullest += 1) {
-            if (self.dsbi.lists.pay.b[offset + new_fullest] != null) {
+            if (self.dsbi.lists.b[offset + new_fullest] != null) {
                 if (new_fullest == obj_per_folio + 1)
                     new_fullest = obj_per_folio;
                 use_new_fullest = new_fullest;
@@ -201,7 +199,7 @@ fn doSmallAlloc(self: *Self, bin: BinNumber, offset: u32, obj_size: u32) ?[*]u8 
 fn predoSmallAllocAddPagesFromNewChunk(self: *Self, bin: BinNumber, offset: u32, chunk_header: *SmallChunkHeader) void {
     const folio_per_chunk = static_bin_info[bin].folios_per_chunk;
     const obj_per_folio = static_bin_info[bin].objects_per_folio;
-    utils.prefetchWrite(&self.dsbi.lists.pay.b[offset + obj_per_folio + 1]);
+    utils.prefetchWrite(&self.dsbi.lists.b[offset + obj_per_folio + 1]);
     utils.prefetchWrite(&chunk_header.list[folio_per_chunk - 1].next);
     if (self.dsbi.fullest_offset[bin] == 0)
         utils.prefetchWrite(&self.dsbi.fullest_offset[bin]);
@@ -210,8 +208,8 @@ fn predoSmallAllocAddPagesFromNewChunk(self: *Self, bin: BinNumber, offset: u32,
 fn doSmallAllocAddPagesFromNewChunk(self: *Self, bin: BinNumber, offset: u32, chunk_header: *SmallChunkHeader) bool {
     const folio_per_chunk = static_bin_info[bin].folios_per_chunk;
     const obj_per_folio = static_bin_info[bin].objects_per_folio;
-    const old_head = self.dsbi.lists.pay.b[offset + obj_per_folio + 1];
-    self.dsbi.lists.pay.b[offset + obj_per_folio + 1] = &chunk_header.list[0];
+    const old_head = self.dsbi.lists.b[offset + obj_per_folio + 1];
+    self.dsbi.lists.b[offset + obj_per_folio + 1] = &chunk_header.list[0];
     chunk_header.list[folio_per_chunk - 1].next = old_head;
     if (self.dsbi.fullest_offset[bin] == 0)
         self.dsbi.fullest_offset[bin] = obj_per_folio;
