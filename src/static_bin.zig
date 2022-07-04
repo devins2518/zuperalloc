@@ -82,8 +82,8 @@ pub const StaticBin = struct {
     objects_per_folio: u16,
     folios_per_chunk: u16,
     overhead_pages_per_chunk: u8,
-    object_division_shift_magic: u8,
-    folio_division_shift_magic: u8,
+    object_division_shift_magic: u6,
+    folio_division_shift_magic: u6,
     object_division_multiply_magic: u64,
     folio_division_multiply_magic: u64,
 };

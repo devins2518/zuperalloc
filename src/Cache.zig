@@ -78,10 +78,7 @@ const ObjCache = struct {
         self.bytecount -= len;
         self.head = result.next;
 
-        return @ptrCast(
-            [*]align(utils.page_size) u8,
-            @alignCast(utils.page_size, result),
-        )[0..len];
+        return @ptrCast([*]u8, result)[0..len];
     }
 
     fn collectObjsForThreadCache(self: *@This(), first_n_objs: *@This(), len: usize) void {
@@ -509,9 +506,156 @@ fn cachedFree(self: *Self, buf: []u8, bin: BinNumber) void {
         largeFree(buf);
 }
 
+// TEST
+
 test "static analysis" {
     std.testing.refAllDecls(Self);
 
     try std.testing.expect(@alignOf(BinCache) == 64);
     try std.testing.expect(@alignOf(CpuCache) == 64);
+}
+
+fn assertEq(cached_obj: *const ObjCache, bytecount: u64, head: ?*Node, tail: ?*Node) !void {
+    try std.testing.expect(cached_obj.bytecount == bytecount);
+    try std.testing.expect(cached_obj.head == head);
+    if (cached_obj.head != null)
+        try std.testing.expect(cached_obj.tail == tail);
+}
+
+fn testTryGetCachedBoth() !void {
+    {
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 0, .head = null, .tail = null },
+        } ** 2 };
+        const r = c.tryGetCachedBoth(1024);
+        try std.testing.expect(r == null);
+    }
+    {
+        var item1 = Node{ .next = null };
+        var item2 = Node{ .next = &item1 };
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 2048, .head = &item2, .tail = &item1 },
+            .{ .bytecount = 0, .head = null, .tail = null },
+        } };
+        const r = c.tryGetCachedBoth(1024) orelse return error.TestFailed;
+        try std.testing.expect(@ptrToInt(r.ptr) == @ptrToInt(&item2));
+        try assertEq(&c.cached_objs[0], 1024, &item1, &item1);
+        try assertEq(&c.cached_objs[1], 0, null, null);
+        const p = c.tryGetCachedBoth(1024) orelse return error.TestFailed;
+        try std.testing.expect(@ptrToInt(p.ptr) == @ptrToInt(&item1));
+        try assertEq(&c.cached_objs[0], 0, null, null);
+        try assertEq(&c.cached_objs[1], 0, null, null);
+    }
+    {
+        var item1 = Node{ .next = null };
+        var item2 = Node{ .next = &item1 };
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 0, .head = null, .tail = null },
+            .{ .bytecount = 2048, .head = &item2, .tail = &item1 },
+        } };
+        const r = c.tryGetCachedBoth(1024) orelse return error.TestFailed;
+        try std.testing.expect(@ptrToInt(r.ptr) == @ptrToInt(&item2));
+        try assertEq(&c.cached_objs[0], 0, null, null);
+        try assertEq(&c.cached_objs[1], 1024, &item1, &item1);
+        const p = c.tryGetCachedBoth(1024) orelse return error.TestFailed;
+        try std.testing.expect(@ptrToInt(p.ptr) == @ptrToInt(&item1));
+        try assertEq(&c.cached_objs[0], 0, null, null);
+        try assertEq(&c.cached_objs[1], 0, null, null);
+    }
+}
+
+fn testRemoveCacheFromCpu() !void {
+    var item1 = Node{ .next = null };
+    var item2 = Node{ .next = null };
+    var c: BinCache = .{ .cached_objs = [_]ObjCache{
+        .{ .bytecount = 1024, .head = &item1, .tail = &item1 },
+        .{ .bytecount = 1024, .head = &item2, .tail = &item2 },
+    } };
+    var cached_obj = ObjCache{ .bytecount = 0, .head = null, .tail = null };
+    {
+        c.predoRemoveCacheFromCpu(&cached_obj);
+        _ = c.doRemoveCacheFromCpu(&cached_obj);
+        try assertEq(&cached_obj, 1024, &item1, &item1);
+        try assertEq(&c.cached_objs[0], 0, null, null);
+        try assertEq(&c.cached_objs[1], 1024, &item2, &item2);
+    }
+    {
+        c.predoRemoveCacheFromCpu(&cached_obj);
+        _ = c.doRemoveCacheFromCpu(&cached_obj);
+        try assertEq(&cached_obj, 1024, &item2, &item2);
+        try assertEq(&c.cached_objs[0], 0, null, null);
+        try assertEq(&c.cached_objs[1], 0, null, null);
+    }
+    {
+        c.predoRemoveCacheFromCpu(&cached_obj);
+        _ = c.doRemoveCacheFromCpu(&cached_obj);
+        try assertEq(&cached_obj, 0, null, null);
+        try assertEq(&c.cached_objs[0], 0, null, null);
+        try assertEq(&c.cached_objs[1], 0, null, null);
+    }
+}
+
+fn testAddCacheToCpu() !void {
+    {
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 0, .head = null, .tail = null },
+            .{ .bytecount = 0, .head = null, .tail = null },
+        } };
+        var item = Node{ .next = null };
+        var co = ObjCache{ .bytecount = 1024, .head = &item, .tail = &item };
+        _ = c.doAddCacheToCpu(&co);
+        try assertEq(&c.cached_objs[0], 1024, &item, &item);
+        try assertEq(&c.cached_objs[1], 0, null, null);
+        try std.testing.expect(item.next == null);
+    }
+    {
+        var item = Node{ .next = null };
+        var item2 = Node{ .next = null };
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 2048, .head = &item2, .tail = &item2 },
+            .{ .bytecount = 0, .head = null, .tail = null },
+        } };
+        var co = ObjCache{ .bytecount = 1024, .head = &item, .tail = &item };
+        _ = c.doAddCacheToCpu(&co);
+        try assertEq(&c.cached_objs[0], 2048, &item2, &item2);
+        try assertEq(&c.cached_objs[1], 1024, &item, &item);
+    }
+    {
+        var item = Node{ .next = null };
+        var item2 = Node{ .next = null };
+        var item3 = Node{ .next = null };
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 1024, .head = &item2, .tail = &item2 },
+            .{ .bytecount = 2048, .head = &item3, .tail = &item3 },
+        } };
+        var co = ObjCache{ .bytecount = 1024, .head = &item, .tail = &item };
+        _ = c.doAddCacheToCpu(&co);
+        try assertEq(&c.cached_objs[0], 2048, &item2, &item);
+        try std.testing.expect(item2.next == &item);
+        try std.testing.expect(item.next == null);
+        try assertEq(&c.cached_objs[1], 2048, &item3, &item3);
+        try std.testing.expect(item3.next == null);
+    }
+    {
+        var item = Node{ .next = null };
+        var item2 = Node{ .next = null };
+        var item3 = Node{ .next = null };
+        var c: BinCache = .{ .cached_objs = [_]ObjCache{
+            .{ .bytecount = 2048, .head = &item3, .tail = &item3 },
+            .{ .bytecount = 1024, .head = &item2, .tail = &item2 },
+        } };
+        var co = ObjCache{ .bytecount = 1024, .head = &item, .tail = &item };
+        _ = c.doAddCacheToCpu(&co);
+        try assertEq(&c.cached_objs[1], 2048, &item2, &item);
+        try std.testing.expect(item2.next == &item);
+        try std.testing.expect(item.next == null);
+        try assertEq(&c.cached_objs[0], 2048, &item3, &item3);
+        try std.testing.expect(item3.next == null);
+    }
+}
+
+test "cache early" {
+    try testTryGetCachedBoth();
+    try testRemoveCacheFromCpu();
+    try testAddCacheToCpu();
 }

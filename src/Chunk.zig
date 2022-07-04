@@ -6,6 +6,11 @@ const Self = @This();
 total_mapped: Atomic(usize) = Atomic(usize).init(0),
 unmapped: Atomic(usize) = Atomic(usize).init(0),
 
+pub const ChunkInfo = packed union {
+    next: utils.ChunkNumber,
+    bin_and_size: utils.BinAndSize,
+};
+
 pub fn mmapSize(self: *Self, len: usize) ?[]align(utils.page_size) u8 {
     const r = std.os.mmap(
         null,
@@ -52,4 +57,43 @@ pub fn mmapChunkAlignedBlock(self: *Self, chunks: usize) ?[]align(utils.page_siz
 
 test "static analysis" {
     std.testing.refAllDecls(Self);
+}
+
+test "make chunk" {
+    var c = Self{};
+    {
+        const v = c.mmapSize(4096) orelse
+            return error.TestFailed;
+        c.unmap(v);
+    }
+    {
+        const v = c.mmapChunkAlignedBlock(1) orelse
+            return error.TestFailed;
+        try std.testing.expect(utils.offsetInChunk(v) == 0);
+        c.unmap(v[0 .. 1 * utils.chunk_size]);
+    }
+    {
+        const v = c.chunkCreateSlow(3) orelse
+            return error.TestFailed;
+        try std.testing.expect(utils.offsetInChunk(v) == 0);
+        const w = c.chunkCreateSlow(3) orelse
+            return error.TestFailed;
+        try std.testing.expect(utils.offsetInChunk(w) == 0);
+        c.unmap(v[0 .. 3 * utils.chunk_size]);
+        c.unmap(w[0 .. 3 * utils.chunk_size]);
+    }
+    {
+        _ = c.mmapSize(4096) orelse
+            return error.TestFailed;
+        const w = c.chunkCreateSlow(3) orelse
+            return error.TestFailed;
+        try std.testing.expect(utils.offsetInChunk(w) == 0);
+    }
+    {
+        _ = c.mmapSize(utils.chunk_size - 4096) orelse
+            return error.TestFailed;
+        const w = c.chunkCreateSlow(3) orelse
+            return error.TestFailed;
+        try std.testing.expect(utils.offsetInChunk(w) == 0);
+    }
 }

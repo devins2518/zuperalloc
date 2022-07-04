@@ -29,53 +29,52 @@ const DynamicSmallBinInfo = packed union {
     b: [11920]?*PerFolio,
     per: packed struct {
         // zig fmt: off
-        b0:  [514]?*PerFolio = [_]PerFolio{null} **  514,
-        b1: [2050]?*PerFolio = [_]PerFolio{null} ** 2050,
-        b2: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
-        b3: [2050]?*PerFolio = [_]PerFolio{null} ** 2050,
-        b4:  [258]?*PerFolio = [_]PerFolio{null} **  258,
-        b5: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
-        b6:  [514]?*PerFolio = [_]PerFolio{null} **  514,
-        b7: [1026]?*PerFolio = [_]PerFolio{null} ** 1026,
-        b8:  [130]?*PerFolio = [_]PerFolio{null} **  130,
-        b9:  [514]?*PerFolio = [_]PerFolio{null} **  514,
-        b10: [258]?*PerFolio = [_]PerFolio{null} **  258,
-        b11: [514]?*PerFolio = [_]PerFolio{null} **  514,
-        b12:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b13: [258]?*PerFolio = [_]PerFolio{null} **  258,
-        b14: [130]?*PerFolio = [_]PerFolio{null} **  130,
-        b15: [258]?*PerFolio = [_]PerFolio{null} **  258,
-        b16:  [34]?*PerFolio = [_]PerFolio{null} **   34,
-        b17: [130]?*PerFolio = [_]PerFolio{null} **  130,
-        b18:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b19: [130]?*PerFolio = [_]PerFolio{null} **  130,
-        b20:  [18]?*PerFolio = [_]PerFolio{null} **   18,
-        b21:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b22:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b23:  [10]?*PerFolio = [_]PerFolio{null} **   10,
-        b24:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b25:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b26:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b27:   [6]?*PerFolio = [_]PerFolio{null} **    6,
-        b28:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b29:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b30:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b31:   [4]?*PerFolio = [_]PerFolio{null} **    4,
-        b32:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b33:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b34:   [3]?*PerFolio = [_]PerFolio{null} **    3,
-        b35:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b36:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b37:   [3]?*PerFolio = [_]PerFolio{null} **    3,
-        b38:  [66]?*PerFolio = [_]PerFolio{null} **   66,
-        b39:  [66]?*PerFolio = [_]PerFolio{null} **   66,
+        b0:  [514]?*PerFolio = [_]?*PerFolio{null} **  514,
+        b1: [2050]?*PerFolio = [_]?*PerFolio{null} ** 2050,
+        b2: [1026]?*PerFolio = [_]?*PerFolio{null} ** 1026,
+        b3: [2050]?*PerFolio = [_]?*PerFolio{null} ** 2050,
+        b4:  [258]?*PerFolio = [_]?*PerFolio{null} **  258,
+        b5: [1026]?*PerFolio = [_]?*PerFolio{null} ** 1026,
+        b6:  [514]?*PerFolio = [_]?*PerFolio{null} **  514,
+        b7: [1026]?*PerFolio = [_]?*PerFolio{null} ** 1026,
+        b8:  [130]?*PerFolio = [_]?*PerFolio{null} **  130,
+        b9:  [514]?*PerFolio = [_]?*PerFolio{null} **  514,
+        b10: [258]?*PerFolio = [_]?*PerFolio{null} **  258,
+        b11: [514]?*PerFolio = [_]?*PerFolio{null} **  514,
+        b12:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b13: [258]?*PerFolio = [_]?*PerFolio{null} **  258,
+        b14: [130]?*PerFolio = [_]?*PerFolio{null} **  130,
+        b15: [258]?*PerFolio = [_]?*PerFolio{null} **  258,
+        b16:  [34]?*PerFolio = [_]?*PerFolio{null} **   34,
+        b17: [130]?*PerFolio = [_]?*PerFolio{null} **  130,
+        b18:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b19: [130]?*PerFolio = [_]?*PerFolio{null} **  130,
+        b20:  [18]?*PerFolio = [_]?*PerFolio{null} **   18,
+        b21:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b22:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b23:  [10]?*PerFolio = [_]?*PerFolio{null} **   10,
+        b24:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b25:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b26:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b27:   [6]?*PerFolio = [_]?*PerFolio{null} **    6,
+        b28:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b29:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b30:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b31:   [4]?*PerFolio = [_]?*PerFolio{null} **    4,
+        b32:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b33:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b34:   [3]?*PerFolio = [_]?*PerFolio{null} **    3,
+        b35:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b36:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b37:   [3]?*PerFolio = [_]?*PerFolio{null} **    3,
+        b38:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
+        b39:  [66]?*PerFolio = [_]?*PerFolio{null} **   66,
         // zig fmt: on
     },
 };
 
-fn verifySmallInvariants(self: *Self) void {
-    _ = self;
-}
+// Has a return statement at the beginning so does nothing?
+fn verifySmallInvariants(_: *Self) void {}
 
 pub fn smallAlloc(self: *Self, zalloc: *Zalloc, bin: BinNumber, len: usize) ?[]u8 {
     self.verifySmallInvariants();
@@ -124,7 +123,9 @@ pub fn smallAlloc(self: *Self, zalloc: *Zalloc, bin: BinNumber, len: usize) ?[]u
         self.verifySmallInvariants();
 
         if (result) |ptr| {
-            std.debug.assert(utils.binFromBinAndSize(zalloc.chunk_infos[utils.addressToChunkNumber(ptr)].bin_and_size) == bin);
+            // std.debug.assert(utils.binFromBinAndSize(
+            //     zalloc.chunk_infos[utils.addressToChunkNumber(ptr)].bin_and_size,
+            // ) == bin);
             return ptr[0..len];
         }
     }
