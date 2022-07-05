@@ -23,24 +23,22 @@ pub fn main() !void {
     const alloc_names = [_][]const u8{ "zalloc", "gpa", "arena", "page", "malloc" };
 
     const fn_n = 2;
-    const fns = [fn_n]fn (Allocator) callconv(.Inline) void{ allocSingleSizeThenFree, allocDifferentSizeThenFree };
+    const fns = [fn_n]fn (Allocator) u64{ allocSingleSizeThenFree, allocDifferentSizeThenFree };
     const fn_names = [fn_n][]const u8{ "allocSingleSizeThenFree", "allocDifferentSizeThenFree" };
 
     const reps = 1 << 12;
     var timings: [fn_n][alloc_n][reps]u64 = [_][alloc_n][reps]u64{
         [_][reps]u64{[_]u64{0} ** reps} ** alloc_n,
     } ** fn_n;
+
     var k: u64 = 0;
-    var now = try std.time.Timer.start();
     while (k < reps) : (k += 1) {
         for (allocs) |allocator, j| {
-            inline for (fns) |f, i| {
-                now.reset();
-                f(allocator);
-                timings[i][j][k] = now.lap();
-            }
+            for (fns) |f, i|
+                timings[i][j][k] = f(allocator);
         }
     }
+
     for (timings) |f, f_i| {
         for (f) |alloc, alloc_i| {
             var sum: u64 = 0;
@@ -61,15 +59,18 @@ pub fn main() !void {
     _ = mally;
 }
 
-inline fn allocSingleSizeThenFree(alloc: Allocator) void {
+fn allocSingleSizeThenFree(alloc: Allocator) u64 {
+    var now = std.time.Timer.start() catch unreachable;
     const size = 512;
     var slice: []u8 = alloc.alloc(u8, size) catch unreachable;
 
     alloc.free(slice);
+    return now.read();
 }
 
 // TODO: random
-inline fn allocDifferentSizeThenFree(alloc: Allocator) void {
+fn allocDifferentSizeThenFree(alloc: Allocator) u64 {
+    var now = std.time.Timer.start() catch unreachable;
     const n = 30;
     const sizes = [n]u32{
         134,  4038, 2430, 862,  3138, 585,
@@ -86,4 +87,5 @@ inline fn allocDifferentSizeThenFree(alloc: Allocator) void {
     for (slices) |slice| {
         alloc.free(slice);
     }
+    return now.read();
 }

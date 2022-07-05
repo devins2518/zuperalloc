@@ -11,7 +11,7 @@ pub fn build(b: *std.build.Builder) void {
     const bench = b.addExecutable("bench", "bench/main.zig");
     bench.addPackagePath("zalloc", "src/lib.zig");
     bench.setTarget(target);
-    // bench.setBuildMode(.ReleaseFast);
+    bench.setBuildMode(.ReleaseFast);
     bench.install();
 
     const lib = b.addStaticLibrary("zalloc", "src/lib.zig");
