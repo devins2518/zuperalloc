@@ -19,7 +19,7 @@ const SmallChunkHeader = struct {
     list: [512]PerFolio = [_]PerFolio{.{}} ** 512,
 };
 
-const PerFolio = struct {
+pub const PerFolio = struct {
     next: ?*PerFolio align(64) = null,
     prev: ?*PerFolio = null,
     in_use_bitmap: [folio_bitmap_n_words]u64 = [_]u64{0} ** folio_bitmap_n_words,

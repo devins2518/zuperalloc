@@ -41,6 +41,7 @@ pub fn largeAlloc(self: *Self, zalloc: *Zalloc, len: usize) ?[]u8 {
     std.debug.assert(bin >= utils.first_large_bin_number);
     std.debug.assert(bin < utils.first_huge_bin_number);
 
+    std.debug.print("\nbin: {}, free_large_obj: {}\n", .{ bin, self.free_large_objs[bin - utils.first_large_bin_number] });
     const free_head = &self.free_large_objs[bin - utils.first_large_bin_number];
 
     while (true) {
@@ -59,13 +60,10 @@ pub fn largeAlloc(self: *Self, zalloc: *Zalloc, len: usize) ?[]u8 {
             head.?.footprint = @truncate(u32, footprint);
             foot.addToFootprint(@bitCast(i64, footprint));
             const chunk = utils.addressToChunkAddress(head.?);
-            const chunk_as_list_cell = @ptrCast(
-                [*]LargeObjListCell,
-                @alignCast(@alignOf([*]LargeObjListCell), chunk),
-            );
+            const chunk_as_list_cell = @ptrCast([*]LargeObjListCell, chunk);
             const offset = @ptrToInt(head) - @ptrToInt(chunk_as_list_cell);
 
-            const addr = @ptrCast([*]u8, chunk + utils.offset_of_first_obj_in_large_chunk + offset * usable_size);
+            const addr = chunk + utils.offset_of_first_obj_in_large_chunk + offset * usable_size;
             std.debug.assert(utils.addressToChunkNumber(addr) == utils.addressToChunkNumber(chunk));
             std.debug.assert(utils.binFromBinAndSize(zalloc.chunk_infos[utils.addressToChunkNumber(addr)].bin_and_size) == bin);
             return addr[0..len];
@@ -76,10 +74,7 @@ pub fn largeAlloc(self: *Self, zalloc: *Zalloc, len: usize) ?[]u8 {
             const size_of_header = objs_per_chunk * @sizeOf(LargeObjListCell);
             std.debug.assert(size_of_header <= utils.offset_of_first_obj_in_large_chunk);
 
-            const entry = @ptrCast(
-                [*]LargeObjListCell,
-                @alignCast(@alignOf([*]LargeObjListCell), chunk),
-            );
+            const entry = @ptrCast([*]LargeObjListCell, chunk);
             var i: usize = 0;
             while (i + 1 < objs_per_chunk) : (i += 1)
                 entry[i].next = &entry[i + 1];

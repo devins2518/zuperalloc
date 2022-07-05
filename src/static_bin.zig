@@ -1,82 +1,34 @@
+const std = @import("std");
+const utils = @import("utils.zig");
+const PerFolio = @import("Salloc.zig").PerFolio;
 const Ki = 1024;
-pub const static_bin_info align(64) = [_]StaticBin{
-    .{ .object_size = 8, .folio_size = 4 * Ki, .objects_per_folio = 512, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 3, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 10, .folio_size = 20 * Ki, .objects_per_folio = 2048, .folios_per_chunk = 100, .overhead_pages_per_chunk = 8, .object_division_shift_magic = 36, .folio_division_shift_magic = 47, .object_division_multiply_magic = 6871947674, .folio_division_multiply_magic = 6871947674 },
-    .{ .object_size = 12, .folio_size = 12 * Ki, .objects_per_folio = 1024, .folios_per_chunk = 166, .overhead_pages_per_chunk = 14, .object_division_shift_magic = 36, .folio_division_shift_magic = 46, .object_division_multiply_magic = 5726623062, .folio_division_multiply_magic = 5726623062 },
-    .{ .object_size = 14, .folio_size = 28 * Ki, .objects_per_folio = 2048, .folios_per_chunk = 72, .overhead_pages_per_chunk = 6, .object_division_shift_magic = 36, .folio_division_shift_magic = 47, .object_division_multiply_magic = 4908534053, .folio_division_multiply_magic = 4908534053 },
-    .{ .object_size = 16, .folio_size = 4 * Ki, .objects_per_folio = 256, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 4, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 20, .folio_size = 20 * Ki, .objects_per_folio = 1024, .folios_per_chunk = 100, .overhead_pages_per_chunk = 8, .object_division_shift_magic = 37, .folio_division_shift_magic = 47, .object_division_multiply_magic = 6871947674, .folio_division_multiply_magic = 6871947674 },
-    .{ .object_size = 24, .folio_size = 12 * Ki, .objects_per_folio = 512, .folios_per_chunk = 166, .overhead_pages_per_chunk = 14, .object_division_shift_magic = 37, .folio_division_shift_magic = 46, .object_division_multiply_magic = 5726623062, .folio_division_multiply_magic = 5726623062 },
-    .{ .object_size = 28, .folio_size = 28 * Ki, .objects_per_folio = 1024, .folios_per_chunk = 72, .overhead_pages_per_chunk = 6, .object_division_shift_magic = 37, .folio_division_shift_magic = 47, .object_division_multiply_magic = 4908534053, .folio_division_multiply_magic = 4908534053 },
-    .{ .object_size = 32, .folio_size = 4 * Ki, .objects_per_folio = 128, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 5, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 40, .folio_size = 20 * Ki, .objects_per_folio = 512, .folios_per_chunk = 100, .overhead_pages_per_chunk = 8, .object_division_shift_magic = 38, .folio_division_shift_magic = 47, .object_division_multiply_magic = 6871947674, .folio_division_multiply_magic = 6871947674 },
-    .{ .object_size = 48, .folio_size = 12 * Ki, .objects_per_folio = 256, .folios_per_chunk = 166, .overhead_pages_per_chunk = 14, .object_division_shift_magic = 38, .folio_division_shift_magic = 46, .object_division_multiply_magic = 5726623062, .folio_division_multiply_magic = 5726623062 },
-    .{ .object_size = 56, .folio_size = 28 * Ki, .objects_per_folio = 512, .folios_per_chunk = 72, .overhead_pages_per_chunk = 6, .object_division_shift_magic = 38, .folio_division_shift_magic = 47, .object_division_multiply_magic = 4908534053, .folio_division_multiply_magic = 4908534053 },
-    .{ .object_size = 64, .folio_size = 4 * Ki, .objects_per_folio = 64, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 6, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 80, .folio_size = 20 * Ki, .objects_per_folio = 256, .folios_per_chunk = 100, .overhead_pages_per_chunk = 8, .object_division_shift_magic = 39, .folio_division_shift_magic = 47, .object_division_multiply_magic = 6871947674, .folio_division_multiply_magic = 6871947674 },
-    .{ .object_size = 96, .folio_size = 12 * Ki, .objects_per_folio = 128, .folios_per_chunk = 166, .overhead_pages_per_chunk = 14, .object_division_shift_magic = 39, .folio_division_shift_magic = 46, .object_division_multiply_magic = 5726623062, .folio_division_multiply_magic = 5726623062 },
-    .{ .object_size = 112, .folio_size = 28 * Ki, .objects_per_folio = 256, .folios_per_chunk = 72, .overhead_pages_per_chunk = 6, .object_division_shift_magic = 39, .folio_division_shift_magic = 47, .object_division_multiply_magic = 4908534053, .folio_division_multiply_magic = 4908534053 },
-    .{ .object_size = 128, .folio_size = 4 * Ki, .objects_per_folio = 32, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 7, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 160, .folio_size = 20 * Ki, .objects_per_folio = 128, .folios_per_chunk = 100, .overhead_pages_per_chunk = 8, .object_division_shift_magic = 40, .folio_division_shift_magic = 47, .object_division_multiply_magic = 6871947674, .folio_division_multiply_magic = 6871947674 },
-    .{ .object_size = 192, .folio_size = 12 * Ki, .objects_per_folio = 64, .folios_per_chunk = 166, .overhead_pages_per_chunk = 14, .object_division_shift_magic = 40, .folio_division_shift_magic = 46, .object_division_multiply_magic = 5726623062, .folio_division_multiply_magic = 5726623062 },
-    .{ .object_size = 224, .folio_size = 28 * Ki, .objects_per_folio = 128, .folios_per_chunk = 72, .overhead_pages_per_chunk = 6, .object_division_shift_magic = 40, .folio_division_shift_magic = 47, .object_division_multiply_magic = 4908534053, .folio_division_multiply_magic = 4908534053 },
-    .{ .object_size = 256, .folio_size = 4 * Ki, .objects_per_folio = 16, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 8, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 320, .folio_size = 20 * Ki, .objects_per_folio = 64, .folios_per_chunk = 100, .overhead_pages_per_chunk = 8, .object_division_shift_magic = 41, .folio_division_shift_magic = 47, .object_division_multiply_magic = 6871947674, .folio_division_multiply_magic = 6871947674 },
-    .{ .object_size = 448, .folio_size = 28 * Ki, .objects_per_folio = 64, .folios_per_chunk = 72, .overhead_pages_per_chunk = 6, .object_division_shift_magic = 41, .folio_division_shift_magic = 47, .object_division_multiply_magic = 4908534053, .folio_division_multiply_magic = 4908534053 },
-    .{ .object_size = 512, .folio_size = 4 * Ki, .objects_per_folio = 8, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 9, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 576, .folio_size = 36 * Ki, .objects_per_folio = 64, .folios_per_chunk = 56, .overhead_pages_per_chunk = 5, .object_division_shift_magic = 42, .folio_division_shift_magic = 48, .object_division_multiply_magic = 7635497416, .folio_division_multiply_magic = 7635497416 },
-    .{ .object_size = 704, .folio_size = 44 * Ki, .objects_per_folio = 64, .folios_per_chunk = 46, .overhead_pages_per_chunk = 4, .object_division_shift_magic = 42, .folio_division_shift_magic = 48, .object_division_multiply_magic = 6247225158, .folio_division_multiply_magic = 6247225158 },
-    .{ .object_size = 960, .folio_size = 60 * Ki, .objects_per_folio = 64, .folios_per_chunk = 33, .overhead_pages_per_chunk = 3, .object_division_shift_magic = 42, .folio_division_shift_magic = 48, .object_division_multiply_magic = 4581298450, .folio_division_multiply_magic = 4581298450 },
-    .{ .object_size = 1024, .folio_size = 4 * Ki, .objects_per_folio = 4, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 10, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1216, .folio_size = 76 * Ki, .objects_per_folio = 64, .folios_per_chunk = 26, .overhead_pages_per_chunk = 3, .object_division_shift_magic = 43, .folio_division_shift_magic = 49, .object_division_multiply_magic = 7233629131, .folio_division_multiply_magic = 7233629131 },
-    .{ .object_size = 1472, .folio_size = 92 * Ki, .objects_per_folio = 64, .folios_per_chunk = 22, .overhead_pages_per_chunk = 2, .object_division_shift_magic = 43, .folio_division_shift_magic = 49, .object_division_multiply_magic = 5975606673, .folio_division_multiply_magic = 5975606673 },
-    .{ .object_size = 1984, .folio_size = 124 * Ki, .objects_per_folio = 64, .folios_per_chunk = 16, .overhead_pages_per_chunk = 2, .object_division_shift_magic = 43, .folio_division_shift_magic = 49, .object_division_multiply_magic = 4433514629, .folio_division_multiply_magic = 4433514629 },
-    .{ .object_size = 2 * Ki, .folio_size = 4 * Ki, .objects_per_folio = 2, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 11, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 2752, .folio_size = 172 * Ki, .objects_per_folio = 64, .folios_per_chunk = 11, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 44, .folio_division_shift_magic = 50, .object_division_multiply_magic = 6392509464, .folio_division_multiply_magic = 6392509464 },
-    .{ .object_size = 3904, .folio_size = 244 * Ki, .objects_per_folio = 64, .folios_per_chunk = 8, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 44, .folio_division_shift_magic = 50, .object_division_multiply_magic = 4506195196, .folio_division_multiply_magic = 4506195196 },
-    .{ .object_size = 4 * Ki, .folio_size = 4 * Ki, .objects_per_folio = 1, .folios_per_chunk = 472, .overhead_pages_per_chunk = 40, .object_division_shift_magic = 12, .folio_division_shift_magic = 12, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 5312, .folio_size = 332 * Ki, .objects_per_folio = 64, .folios_per_chunk = 6, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 45, .folio_division_shift_magic = 51, .object_division_multiply_magic = 6623564023, .folio_division_multiply_magic = 6623564023 },
-    .{ .object_size = 7232, .folio_size = 452 * Ki, .objects_per_folio = 64, .folios_per_chunk = 4, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 45, .folio_division_shift_magic = 51, .object_division_multiply_magic = 4865095699, .folio_division_multiply_magic = 4865095699 },
-    .{ .object_size = 8 * Ki, .folio_size = 8 * Ki, .objects_per_folio = 1, .folios_per_chunk = 246, .overhead_pages_per_chunk = 20, .object_division_shift_magic = 13, .folio_division_shift_magic = 13, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 10048, .folio_size = 628 * Ki, .objects_per_folio = 64, .folios_per_chunk = 3, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 46, .folio_division_shift_magic = 52, .object_division_multiply_magic = 7003258776, .folio_division_multiply_magic = 7003258776 },
-    .{ .object_size = 14272, .folio_size = 892 * Ki, .objects_per_folio = 64, .folios_per_chunk = 2, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 46, .folio_division_shift_magic = 52, .object_division_multiply_magic = 4930545417, .folio_division_multiply_magic = 4930545417 },
-    .{ .object_size = 16 * Ki, .folio_size = 16 * Ki, .objects_per_folio = 1, .folios_per_chunk = 127, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 14, .folio_division_shift_magic = 14, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 32 * Ki, .folio_size = 32 * Ki, .objects_per_folio = 1, .folios_per_chunk = 63, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 15, .folio_division_shift_magic = 15, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 64 * Ki, .folio_size = 64 * Ki, .objects_per_folio = 1, .folios_per_chunk = 31, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 16, .folio_division_shift_magic = 16, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 128 * Ki, .folio_size = 128 * Ki, .objects_per_folio = 1, .folios_per_chunk = 15, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 17, .folio_division_shift_magic = 17, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 252 * Ki, .folio_size = 252 * Ki, .objects_per_folio = 1, .folios_per_chunk = 8, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 50, .folio_division_shift_magic = 50, .object_division_multiply_magic = 4363141381, .folio_division_multiply_magic = 4363141381 },
-    .{ .object_size = 508 * Ki, .folio_size = 508 * Ki, .objects_per_folio = 1, .folios_per_chunk = 4, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 51, .folio_division_shift_magic = 51, .object_division_multiply_magic = 4328785937, .folio_division_multiply_magic = 4328785937 },
-    .{ .object_size = 1020 * Ki, .folio_size = 1020 * Ki, .objects_per_folio = 1, .folios_per_chunk = 2, .overhead_pages_per_chunk = 1, .object_division_shift_magic = 52, .folio_division_shift_magic = 52, .object_division_multiply_magic = 4311810306, .folio_division_multiply_magic = 4311810306 },
-    .{ .object_size = 1 << 21, .folio_size = 1 << 21, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 21, .folio_division_shift_magic = 21, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 22, .folio_size = 1 << 22, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 23, .folio_size = 1 << 23, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 24, .folio_size = 1 << 24, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 25, .folio_size = 1 << 25, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 26, .folio_size = 1 << 26, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 27, .folio_size = 1 << 27, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 28, .folio_size = 1 << 28, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 29, .folio_size = 1 << 29, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 30, .folio_size = 1 << 30, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 31, .folio_size = 1 << 31, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 32, .folio_size = 1 << 32, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 33, .folio_size = 1 << 33, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 34, .folio_size = 1 << 34, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 35, .folio_size = 1 << 35, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 36, .folio_size = 1 << 36, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 37, .folio_size = 1 << 37, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 38, .folio_size = 1 << 38, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 39, .folio_size = 1 << 39, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 40, .folio_size = 1 << 40, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 41, .folio_size = 1 << 41, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 42, .folio_size = 1 << 42, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 43, .folio_size = 1 << 43, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 44, .folio_size = 1 << 44, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 45, .folio_size = 1 << 45, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 46, .folio_size = 1 << 46, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
-    .{ .object_size = 1 << 47, .folio_size = 1 << 47, .objects_per_folio = 1, .folios_per_chunk = 1, .overhead_pages_per_chunk = 0, .object_division_shift_magic = 1, .folio_division_shift_magic = 1, .object_division_multiply_magic = 1, .folio_division_multiply_magic = 1 },
+const Me = Ki * Ki;
+pub const static_bin_info: [74]StaticBin align(64) = blk: {
+    var array = [_]StaticBin{undefined} ** 74;
+    var i = 0;
+
+    var prev_non_aligned_size = 8;
+    var k = 8;
+    while (true) : (k *= 2) outer: {
+        var c = 4;
+        while (c <= 7) : (c += 1) {
+            const objsize = (c * k) / 4;
+            if (objsize > 4 * utils.cache_line)
+                break :outer;
+            const bin = StaticBin.from(.small, objsize);
+            if (objsize == 8 or (isPowerOfTwo(objsize) and objsize > utils.cache_line)) {} else {
+                prev_non_aligned_size = objsize;
+            }
+            array[i] = bin;
+            i += 1;
+        }
+    }
+    break :blk array;
 };
 
+const BinSize = enum { small, large, huge };
 pub const StaticBin = struct {
+    const Self = @This();
     object_size: u64,
     folio_size: u64,
     objects_per_folio: u16,
@@ -86,4 +38,98 @@ pub const StaticBin = struct {
     folio_division_shift_magic: u6,
     object_division_multiply_magic: u64,
     folio_division_multiply_magic: u64,
+
+    fn calculateFolioSize(comptime obj_size: comptime_int) comptime_int {
+        return if (obj_size > utils.chunk_size)
+            obj_size
+        else if (isPowerOfTwo(obj_size)) blk: {
+            break :blk if (obj_size < utils.page_size)
+                utils.page_size
+            else
+                obj_size;
+        } else if (obj_size > 16 * 1024)
+            obj_size
+        else if (obj_size > 256)
+            (obj_size / utils.cache_line) * utils.page_size
+        else if (obj_size > utils.page_size)
+            obj_size
+        else
+            return lcm(obj_size, utils.page_size);
+    }
+
+    fn calculateOverheadPagesPerChunk(comptime cat: BinSize, comptime folio_size: comptime_int) comptime_int {
+        return switch (cat) {
+            .huge => 0,
+            .large => 1,
+            .small => utils.ceil(@sizeOf(PerFolio) * (utils.chunk_size / folio_size), utils.page_size),
+        };
+    }
+
+    fn calculateShiftMagic(comptime d: comptime_int) comptime_int {
+        return if (d > utils.chunk_size)
+            1
+        else if (isPowerOfTwo(d))
+            ceilLog2(d)
+        else
+            32 + ceilLog2(d);
+    }
+
+    fn calculateMultiplyMagic(comptime d: comptime_int) comptime_int {
+        return if (d > utils.chunk_size)
+            1
+        else if (isPowerOfTwo(d))
+            1
+        else
+            (d - 1 + (1 << calculateShiftMagic(d))) / d;
+    }
+
+    fn from(comptime cat: BinSize, comptime obj_size: comptime_int) Self {
+        const folio_size = calculateFolioSize(obj_size);
+        const overhead_pages_per_chunk = calculateOverheadPagesPerChunk(cat, folio_size);
+        const folios_per_chunk = if (obj_size < utils.chunk_size)
+            (utils.chunk_size - overhead_pages_per_chunk * utils.page_size) / folio_size
+        else
+            1;
+        return .{
+            .object_size = obj_size,
+            .folio_size = folio_size,
+            .objects_per_folio = folio_size / obj_size,
+            .folios_per_chunk = folios_per_chunk,
+            .overhead_pages_per_chunk = overhead_pages_per_chunk,
+            .object_division_shift_magic = calculateShiftMagic(obj_size),
+            .folio_division_shift_magic = calculateShiftMagic(folio_size),
+            .object_division_multiply_magic = calculateMultiplyMagic(obj_size),
+            .folio_division_multiply_magic = calculateMultiplyMagic(folio_size),
+        };
+    }
 };
+
+fn isPowerOfTwo(comptime x: comptime_int) bool {
+    return (x & (x - 1)) == 0;
+}
+
+fn lcm(comptime a: comptime_int, comptime b: comptime_int) comptime_int {
+    const g = gcd(a, b);
+    return (a / g) * b;
+}
+
+fn gcd(comptime a: comptime_int, comptime b: comptime_int) comptime_int {
+    return if (a == 0)
+        b
+    else if (b == 0 or a == b)
+        a
+    else if (a < b)
+        gcd(a, @mod(b, a))
+    else
+        gcd(b, @mod(a, b));
+}
+
+fn ceilLog2(comptime c: comptime_int) comptime_int {
+    var result = if (isPowerOfTwo(c)) 0 else 1;
+    var d = c;
+    while (d > 1) {
+        result += 1;
+        d = d >> 1;
+    }
+    return result;
+}
