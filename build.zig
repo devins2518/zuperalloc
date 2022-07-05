@@ -26,13 +26,8 @@ pub fn build(b: *std.build.Builder) void {
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 
-    const bench_cmd_str = &[_][]const u8{
-        "hyperfine",
-        "-N",
-        "./zig-out/bin/bench",
-    };
-    const bench_cmd = b.addSystemCommand(bench_cmd_str);
-    bench_cmd.step.dependOn(b.getInstallStep());
+    const bench_cmd = bench.run();
+    bench_cmd.step.dependOn(&bench.install_step.?.step);
     const bench_step = b.step("bench", "Run benchmarks");
     bench_step.dependOn(&bench_cmd.step);
 }
