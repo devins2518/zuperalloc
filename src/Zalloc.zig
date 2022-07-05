@@ -15,6 +15,12 @@ pub fn init() Self {
     return .{};
 }
 
+pub fn deinit(self: *Self) void {
+    self.sally.deinit();
+    self.lally.deinit();
+    self.hally.deinit();
+}
+
 pub fn allocator(self: *Self) Allocator {
     return Allocator.init(self, alloc, Allocator.NoResize(Self).noResize, Allocator.NoOpFree(Self).noOpFree);
 }
@@ -26,6 +32,9 @@ fn alloc(self: *Self, len: usize, ptr_align: u29, len_align: u29, ret_addr: usiz
 
 test "static analysis" {
     std.testing.refAllDecls(Self);
+}
+
+test "test allocator" {
     var zalloc = std.mem.validationWrap(Self.init());
     const child = zalloc.allocator();
 
