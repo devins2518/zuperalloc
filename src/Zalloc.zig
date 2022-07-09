@@ -30,6 +30,14 @@ fn alloc(self: *Self, len: usize, ptr_align: u29, len_align: u29, ret_addr: usiz
     return self.backing_alloc.rawAlloc(len, ptr_align, len_align, ret_addr);
 }
 
+fn resize(self: *Self, buf: []u8, buf_align: u29, new_len: usize, len_align: u29, ret_addr: usize) ?usize {
+    return self.backing_alloc.rawResize(buf, buf_align, new_len, len_align, ret_addr);
+}
+
+fn free(self: *Self, buf: []u8, buf_align: u29, ret_addr: usize) void {
+    self.backing_alloc.rawFree(buf, buf_align, ret_addr);
+}
+
 test "static analysis" {
     std.testing.refAllDecls(Self);
 }
